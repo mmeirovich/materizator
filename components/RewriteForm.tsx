@@ -13,10 +13,17 @@ export default function RewriteForm({ onResult }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [popup, setPopup] = useState<string | null>(null);
   const okRef = useRef<HTMLButtonElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     if (popup) okRef.current?.focus();
   }, [popup]);
+
+  function clearText() {
+    setText("");
+    setError(null);
+    textareaRef.current?.focus();
+  }
 
   /** "Not Russian" errors open a popup; everything else stays inline. */
   function showError(message: string) {
@@ -64,6 +71,7 @@ export default function RewriteForm({ onResult }: Props) {
       </label>
       <textarea
         id="phrase"
+        ref={textareaRef}
         value={text}
         maxLength={MAX_LENGTH}
         rows={4}
@@ -77,9 +85,21 @@ export default function RewriteForm({ onResult }: Props) {
         <p id="phrase-error" role="alert" className="min-h-6 text-red-400">
           {error}
         </p>
-        <span id="phrase-count" className="shrink-0 text-sm text-zinc-300">
-          {text.length}/{MAX_LENGTH}
-        </span>
+        <div className="flex shrink-0 items-center gap-3">
+          {text.length > 0 && (
+            <button
+              type="button"
+              onClick={clearText}
+              aria-label="Очистить текст"
+              className="rounded-lg px-2 py-1 text-sm text-zinc-300 underline hover:text-white focus-visible:outline-2 focus-visible:outline-red-400"
+            >
+              Очистить
+            </button>
+          )}
+          <span id="phrase-count" className="text-sm text-zinc-300">
+            {text.length}/{MAX_LENGTH}
+          </span>
+        </div>
       </div>
       <button
         type="submit"
