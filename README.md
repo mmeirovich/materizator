@@ -21,7 +21,7 @@ Only the key for the provider you use is required (`GEMINI_API_KEY` by default).
 | `GEMINI_API_KEY`        | Google Gemini API key                                                                        |
 | `ANTHROPIC_API_KEY`     | Anthropic API key                                                                            |
 | `OPENAI_API_KEY`        | OpenAI API key                                                                               |
-| `LLM_FALLBACK_PROVIDER` | Optional provider tried (with its default model) when the primary fails twice                |
+| `LLM_FALLBACK_PROVIDER` | Optional provider tried (with its default model) when the primary has used all its attempts  |
 | `DAILY_REQUEST_CAP`     | Global requests per UTC day across all users (default `2000`)                                |
 
 ### Gemini model note
@@ -56,7 +56,7 @@ The script runs the four reference phrases (each with its own example removed fr
 
 - Input is trimmed, 1 to 300 characters, at least 50% Cyrillic letters (otherwise 400 `Калякай по человечески, долбоеб!`). The same check runs in the browser.
 - Limits: 10 requests per minute per IP (429 with `Retry-After`) and a global daily cap (503). Both are in memory, so they are approximate on serverless hosting. For production use Redis or Upstash (see the comment in `lib/rateLimit.ts`).
-- Provider failures (HTTP 429, safety block, empty answer, refusal, non-Russian output, timeout) are retried once, then the fallback provider is tried if set. If everything fails you get a Russian error message with no internal details.
+- Provider failures (HTTP 429, safety block, empty answer, refusal, non-Russian output, timeout) are retried up to 4 more times (5 attempts in total, with a growing delay and a 50 s time budget), then the fallback provider is tried if set. If everything fails you get a Russian error message with no internal details.
 - If the model answers `ERROR`, the route returns 422 `Не получилось. Попробуйте другую фразу`.
 - Logs contain only provider, model, latency, token counts and status, never the user's text.
 

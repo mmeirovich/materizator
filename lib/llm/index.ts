@@ -11,6 +11,10 @@ type Env = Record<string, string | undefined>;
 
 const PROVIDERS: readonly ProviderName[] = ["gemini", "anthropic", "openai"];
 const RETRY_DELAY_MS = 400;
+/** Extra attempts on the primary provider after the first one fails. */
+export const MAX_RETRIES = 4;
+/** Stop retrying once this much time has passed, so we stay inside the route's time limit. */
+const TIME_BUDGET_MS = 50_000;
 
 const REFUSAL_START =
   /^(извините|простите|к сожалению|я не могу|не могу (помочь|выполнить|ответить)|я не буду|sorry|i can'?t|i cannot|i'm sorry|i am sorry|i'm unable|i am unable)/i;
@@ -98,21 +102,29 @@ async function attempt(p: Provider, text: string): Promise<string> {
 export interface RewriteOptions {
   env?: Env;
   sleep?: (ms: number) => Promise<void>;
+  /** Extra attempts on the primary provider (default 4, so up to 5 tries in total). */
+  retries?: number;
+  now?: () => number;
 }
 
 /**
- * Rewrite a phrase. Retries the primary provider once, then tries the fallback
- * provider (if configured). "ERROR" answers are final and are not retried.
+ * Rewrite a phrase. Retries the primary provider up to MAX_RETRIES more times (with a growing
+ * delay), then tries the fallback provider (if configured). "ERROR" answers are final and are
+ * never retried. Retrying also stops once the time budget is used up.
  */
 export async function rewrite(text: string, opts: RewriteOptions = {}): Promise<string> {
   const env = opts.env ?? process.env;
   const sleep = opts.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
 
+  const now = opts.now ?? Date.now;
+  const started = now();
+  const retries = opts.retries ?? MAX_RETRIES;
+
   const chain = [selectProvider(env), selectFallback(env)].filter((p): p is Provider => p !== null);
   let last: LlmError | undefined;
 
   for (const [i, provider] of chain.entries()) {
-    const tries = i === 0 ? 2 : 1;
+    const tries = i === 0 ? 1 + retries : 1;
     for (let n = 0; n < tries; n++) {
       try {
         return await attempt(provider, text);
@@ -120,7 +132,10 @@ export async function rewrite(text: string, opts: RewriteOptions = {}): Promise<
         last = err as LlmError;
         if (last.kind === "rejected") throw last;
         if (!last.retriable) break;
-        if (n < tries - 1) await sleep(RETRY_DELAY_MS);
+        if (n < tries - 1) {
+          if (now() - started > TIME_BUDGET_MS) break;
+          await sleep(RETRY_DELAY_MS * (n + 1));
+        }
       }
     }
   }

@@ -91,50 +91,79 @@ describe("rewrite", () => {
     expect(f).toHaveBeenCalledTimes(1);
   });
 
-  it("retries once on HTTP 429", async () => {
+  it("retries on HTTP 429 and succeeds on a later attempt", async () => {
     const f = mockFetch(json({}, 429), gem("Хуй"));
     expect(await rewrite("x", { env, sleep })).toBe("Хуй");
     expect(f).toHaveBeenCalledTimes(2);
   });
 
-  it("fails with rate_limit after two 429s and no fallback", async () => {
-    const f = mockFetch(json({}, 429), json({}, 429));
+  it("succeeds on the fifth attempt (4 retries)", async () => {
+    const f = mockFetch(json({}, 429), gem(""), json({}, 500), gem("Hello"), gem("Хуй"));
+    expect(await rewrite("x", { env, sleep })).toBe("Хуй");
+    expect(f).toHaveBeenCalledTimes(5);
+  });
+
+  it("fails after 5 attempts in total and no fallback", async () => {
+    const f = mockFetch(...Array.from({ length: 6 }, () => json({}, 429)));
     await expect(rewrite("x", { env, sleep })).rejects.toMatchObject({ kind: "rate_limit" });
-    expect(f).toHaveBeenCalledTimes(2);
+    expect(f).toHaveBeenCalledTimes(5);
+  });
+
+  it("waits a growing delay between attempts", async () => {
+    const delays: number[] = [];
+    mockFetch(...Array.from({ length: 5 }, () => json({}, 500)));
+    await rewrite("x", { env, sleep: async (ms) => void delays.push(ms) }).catch(() => {});
+    expect(delays).toEqual([400, 800, 1200, 1600]);
+  });
+
+  it("stops retrying when the time budget is spent", async () => {
+    let t = 0;
+    const f = mockFetch(...Array.from({ length: 5 }, () => json({}, 500)));
+    await rewrite("x", { env, sleep, now: () => (t += 30_000) }).catch(() => {});
+    expect(f.mock.calls.length).toBeLessThan(5);
+  });
+
+  it("does not retry non-retriable errors like a missing key", async () => {
+    const f = mockFetch(json({}, 401));
+    await expect(rewrite("x", { env, sleep })).rejects.toMatchObject({ kind: "config" });
+    expect(f).toHaveBeenCalledTimes(1);
   });
 
   it("treats a safety block as a failure", async () => {
     mockFetch(
       json({ promptFeedback: { blockReason: "SAFETY" } }),
       json({ candidates: [{ finishReason: "SAFETY" }] }),
+      json({ promptFeedback: { blockReason: "SAFETY" } }),
+      json({ candidates: [{ finishReason: "SAFETY" }] }),
+      json({ promptFeedback: { blockReason: "SAFETY" } }),
     );
     await expect(rewrite("x", { env, sleep })).rejects.toMatchObject({ kind: "blocked" });
   });
 
   it("treats an empty response as a failure", async () => {
-    mockFetch(gem(""), gem("  "));
+    mockFetch(...Array.from({ length: 5 }, () => gem("  ")));
     await expect(rewrite("x", { env, sleep })).rejects.toMatchObject({ kind: "empty" });
   });
 
   it("treats a refusal as a failure", async () => {
-    mockFetch(gem("Извините, я не могу с этим помочь"), gem("I can't help with that"));
+    mockFetch(...Array.from({ length: 5 }, () => gem("Извините, я не могу с этим помочь")));
     await expect(rewrite("x", { env, sleep })).rejects.toMatchObject({ kind: "refusal" });
   });
 
   it("treats non-Russian output as a failure", async () => {
-    mockFetch(gem("Hello world"), gem("Hello world"));
+    mockFetch(...Array.from({ length: 5 }, () => gem("Hello world")));
     await expect(rewrite("x", { env, sleep })).rejects.toMatchObject({ kind: "bad_output" });
   });
 
   it("uses the fallback provider after the primary fails twice", async () => {
-    const f = mockFetch(json({}, 429), json({}, 429), claude("Хуёвая пизда"));
+    const f = mockFetch(...Array.from({ length: 5 }, () => json({}, 429)), claude("Хуёвая пизда"));
     const result = await rewrite("x", {
       env: { ...env, LLM_FALLBACK_PROVIDER: "anthropic" },
       sleep,
     });
     expect(result).toBe("Хуёвая пизда");
-    expect(f).toHaveBeenCalledTimes(3);
-    expect(String(f.mock.calls[2][0])).toContain("api.anthropic.com");
+    expect(f).toHaveBeenCalledTimes(6);
+    expect(String(f.mock.calls[5][0])).toContain("api.anthropic.com");
   });
 
   it("does not log user text", async () => {
