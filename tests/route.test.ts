@@ -38,7 +38,7 @@ describe("POST /api/rewrite", () => {
     expect(english.status).toBe(400);
     expect((await english.json()).error).toBe("Калякай по человечески, долбоеб!");
     expect((await POST(req({ text: "" }))).status).toBe(400);
-    expect((await POST(req({ text: "а".repeat(301) }))).status).toBe(400);
+    expect((await POST(req({ text: "а".repeat(501) }))).status).toBe(400);
     expect((await POST(req({}))).status).toBe(400);
     expect((await POST(req("not json"))).status).toBe(400);
     expect(mocked).not.toHaveBeenCalled();

@@ -68,7 +68,7 @@ describe("rewrite", () => {
     expect(String(url)).not.toContain("key=");
     expect(init.headers["x-goog-api-key"]).toBe("g");
     const body = JSON.parse(init.body);
-    expect(body.generationConfig.maxOutputTokens).toBe(150);
+    expect(body.generationConfig.maxOutputTokens).toBe(300);
     expect(body.contents.at(-1).parts[0].text).toBe("Это дерево высокое");
   });
 
@@ -81,7 +81,7 @@ describe("rewrite", () => {
     await rewrite("а", { env: { ...env, LLM_PROVIDER: "openai" }, sleep });
     const body = JSON.parse(f.mock.calls[0][1].body);
     expect(body.reasoning_effort).toBe("minimal");
-    expect(body.max_completion_tokens).toBe(150);
+    expect(body.max_completion_tokens).toBe(300);
     expect(body.temperature).toBeUndefined();
   });
 

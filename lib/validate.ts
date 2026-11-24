@@ -1,8 +1,8 @@
-export const MAX_LENGTH = 300;
+export const MAX_LENGTH = 500;
 export const MIN_CYRILLIC_RATIO = 0.5;
 export const ERROR_NOT_RUSSIAN = "Калякай по человечески, долбоеб!";
 export const ERROR_EMPTY = "Введите фразу";
-export const ERROR_TOO_LONG = "Слишком длинная фраза (максимум 300 символов)";
+export const ERROR_TOO_LONG = `Слишком длинная фраза (максимум ${MAX_LENGTH} символов)`;
 
 const CYRILLIC = /[Ѐ-ӿ]/;
 const LETTER = /\p{L}/u;

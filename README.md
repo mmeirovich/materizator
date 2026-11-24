@@ -26,7 +26,7 @@ Only the key for the provider you use is required (`GEMINI_API_KEY` by default).
 
 ### Gemini model note
 
-`gemini-2.5-flash-lite` is not retired, but Google's docs say access is limited to users who already used it, and recommend `gemini-3.5-flash-lite` for new projects. The default is therefore `gemini-3.5-flash-lite`. Set `LLM_MODEL=gemini-2.5-flash-lite` if your account has access. Verify the current id at <https://ai.google.dev/gemini-api/docs/models>. Thinking is disabled or minimal for Gemini so the 150-token output budget is not spent on reasoning.
+`gemini-2.5-flash-lite` is not retired, but Google's docs say access is limited to users who already used it, and recommend `gemini-3.5-flash-lite` for new projects. The default is therefore `gemini-3.5-flash-lite`. Set `LLM_MODEL=gemini-2.5-flash-lite` if your account has access. Verify the current id at <https://ai.google.dev/gemini-api/docs/models>. Thinking is disabled or minimal for Gemini so the output token budget is not spent on reasoning.
 
 ## Providers
 
@@ -54,7 +54,7 @@ The script runs the four reference phrases (each with its own example removed fr
 
 `POST /api/rewrite` with `{ "text": "..." }` returns `{ "result": "..." }`.
 
-- Input is trimmed, 1 to 300 characters, at least 50% Cyrillic letters (otherwise 400 `Калякай по человечески, долбоеб!`). The same check runs in the browser.
+- Input is trimmed, 1 to 500 characters, at least 50% Cyrillic letters (otherwise 400 `Калякай по человечески, долбоеб!`). The same check runs in the browser.
 - Limits: 10 requests per minute per IP (429 with `Retry-After`) and a global daily cap (503). Both are in memory, so they are approximate on serverless hosting. For production use Redis or Upstash (see the comment in `lib/rateLimit.ts`).
 - Provider failures (HTTP 429, safety block, empty answer, refusal, non-Russian output, timeout) are retried up to 4 more times (5 attempts in total, with a growing delay and a 50 s time budget), then the fallback provider is tried if set. If everything fails you get a Russian error message with no internal details.
 - If the model answers `ERROR`, the route returns 422 `Не получилось. Попробуйте другую фразу`.

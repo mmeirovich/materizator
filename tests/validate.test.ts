@@ -9,9 +9,9 @@ describe("validateInput", () => {
     expect(validateInput(42).ok).toBe(false);
     expect(validateInput("   ").ok).toBe(false);
   });
-  it("rejects text over 300 characters", () => {
-    expect(validateInput("а".repeat(301)).ok).toBe(false);
-    expect(validateInput("а".repeat(300)).ok).toBe(true);
+  it("rejects text over 500 characters", () => {
+    expect(validateInput("а".repeat(501)).ok).toBe(false);
+    expect(validateInput("а".repeat(500)).ok).toBe(true);
   });
   it("rejects mostly non-Cyrillic text with the Russian error", () => {
     expect(validateInput("Hello there my friend")).toEqual({

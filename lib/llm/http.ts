@@ -1,7 +1,7 @@
 import { LlmError, type ProviderName } from "./types";
 
 export const TIMEOUT_MS = 20_000;
-export const MAX_OUTPUT_TOKENS = 150;
+export const MAX_OUTPUT_TOKENS = 300;
 export const TEMPERATURE = 0.7;
 
 /** POST JSON with a timeout; maps transport/HTTP failures to LlmError. Never logs bodies. */
